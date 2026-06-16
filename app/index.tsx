@@ -41,7 +41,7 @@ export default function App() {
             const newShoppingList = [
                 { id: new Date().toTimeString(), name: value },
                 ...shoppingList
-            ];
+            ]; 
             setShoppingList(newShoppingList);
             setValue("")
         }
