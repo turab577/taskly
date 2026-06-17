@@ -1,28 +1,27 @@
 import { StatusBar } from "expo-status-bar";
-import { StyleSheet, View, TextInput, ScrollView, FlatList, Text } from "react-native";
+import { StyleSheet, View, TextInput, ScrollView, FlatList, Text , LayoutAnimation, Platform, UIManager } from "react-native";
+import * as Haptics from "expo-haptics";
+
+if (
+  Platform.OS === "android" &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import { theme } from "../theme";
 import { ShoppingListItem } from "../components/ShoppingListItem";
 import { Link } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { getFromStorage, saveToStorage } from "../utils/storage";
+
+const storageKey = "shoppingList";
+
 type shoppingListItemType = {
     id: string,
     name: string,
+    completedAtTimestamp?: number,
+    lastUpdatedTimestamp : number
 }
-
-const initialList: shoppingListItemType[] = [
-    {
-        id: "1",
-        name: "Ginger bread"
-    },
-    {
-        id: "2",
-        name: "Milk"
-    },
-    {
-        id: "3",
-        name: "Eggs"
-    },
-];
 
 const testData = new Array(1000)
   .fill(null)
@@ -34,23 +33,65 @@ const testData = new Array(1000)
 
 
 export default function App() {
-    const [shoppingList, setShoppingList] = useState<shoppingListItemType[]>("");
+    const [shoppingList, setShoppingList] = useState<shoppingListItemType[]>([]);
     const [value, setValue] = useState("");
+
+    useEffect(()=>{
+       const fetchInitial = async ()=>{
+        const data = await getFromStorage(storageKey);
+        if(data){
+          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+          setShoppingList(data)
+        }
+       };
+      fetchInitial()
+    } , [])
+
     const handleSubmit = () => {
         if (value) {
             const newShoppingList = [
-                { id: new Date().toTimeString(), name: value },
+                { id: new Date().toTimeString(), name: value , lastUpdatedTimestamp: Date.now() },
                 ...shoppingList
             ]; 
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
             setShoppingList(newShoppingList);
+            saveToStorage(storageKey , newShoppingList);
             setValue("")
         }
     }
 
+    const handleDelete = (id : string)=>{
+        const newShoppingList = shoppingList.filter(item => item.id !== id);
+        saveToStorage(storageKey , newShoppingList);
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        setShoppingList(newShoppingList);
+    }
+
+    const handleToggleComplete = (id : string)=>{
+        const newShoppingList = shoppingList.map((item)=>{
+            if( item.id == id){
+              if(item.completedAtTimestamp){
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              } else {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              }
+                return {
+                    ...item,
+                    lastUpdatedTimestamp : Date.now(),
+                    completedAtTimestamp : item.completedAtTimestamp ? undefined : Date.now(),
+                }
+            }
+            return item; 
+        });
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+        saveToStorage(storageKey , newShoppingList);
+        setShoppingList(newShoppingList);
+    }
 
    return (
   <FlatList
-    data={shoppingList}
+    data={orderShoppingList(shoppingList)}
     style={styles.container}
 
     ListHeaderComponent={
@@ -64,7 +105,9 @@ export default function App() {
       />
     }
     renderItem={({ item }) => (
-      <ShoppingListItem name={item.name} />
+      <ShoppingListItem name={item.name} onDelete = {()=>{handleDelete(item.id)}} onToggleComplete={()=>handleToggleComplete(item.id)}
+      isCompleted={Boolean(item.completedAtTimestamp)}
+      />
     )}
     stickyHeaderIndices={[0]}
     ListEmptyComponent={
@@ -76,6 +119,29 @@ export default function App() {
     }
   />
 );
+}
+
+
+function orderShoppingList(shoppingList: shoppingListItemType[]) {
+  return shoppingList.sort((item1, item2) => {
+    if (item1.completedAtTimestamp && item2.completedAtTimestamp) {
+      return item2.completedAtTimestamp - item1.completedAtTimestamp;
+    }
+
+    if (item1.completedAtTimestamp && !item2.completedAtTimestamp) {
+      return 1;
+    }
+
+    if (!item1.completedAtTimestamp && item2.completedAtTimestamp) {
+      return -1;
+    }
+
+    if (!item1.completedAtTimestamp && !item2.completedAtTimestamp) {
+      return item2.lastUpdatedTimestamp - item1.lastUpdatedTimestamp;
+    }
+
+    return 0;
+  });
 }
 
 const styles = StyleSheet.create({
