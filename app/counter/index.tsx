@@ -41,7 +41,7 @@ export default function CounterScreen() {
     const init = async () => {
       const value = await getFromStorage(countddownStorageKey);
       setCountdownState(value);
-      // setIsLoading(false);
+      setIsLoading(false);
     }
     init ()
   } , [])
