@@ -1,7 +1,5 @@
 import { Tabs } from "expo-router";
 import Feather from '@expo/vector-icons/Feather';
-import AntDesign from '@expo/vector-icons/AntDesign';
-import Entypo from '@expo/vector-icons/Entypo';
 import { theme } from "../theme";
 export default function Layout() {
   return (
@@ -16,9 +14,9 @@ export default function Layout() {
             <Feather name="clock" size={size} color={color} />
           )
         } }} />
-        <Tabs.Screen name="idea" options={{ title : "Idea" , tabBarIcon : ({size , color})=>{
+        <Tabs.Screen name="focus" options={{ title : "Focus" , tabBarIcon : ({size , color})=>{
           return(
-            <Entypo name="light-bulb" size={size} color={color} />
+            <Feather name="target" size={size} color={color} />
           )
         } }} />
     </Tabs>
